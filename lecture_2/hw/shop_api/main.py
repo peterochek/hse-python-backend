@@ -1,19 +1,20 @@
+from http import HTTPStatus
+from typing import Any
+
 from fastapi import FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
-from typing import Any
-from http import HTTPStatus
-from lecture_2.hw.shop_api.models import Item, Cart, CartItem, ItemPost
+
+from lecture_2.hw.shop_api.data import Cart, CartItem, Item, ItemPost, carts, items
+from lecture_2.hw.shop_api.utils import get_id
 
 app = FastAPI(title="Shop API")
-
-items: dict[int, Item] = {}
-carts: dict[int, Cart] = {}
 
 
 @app.post("/cart", status_code=status.HTTP_201_CREATED)
 def create_cart():
-    cart_id = len(carts) + 1
+    cart_id = get_id()
     carts[cart_id] = Cart(id=cart_id)
+
     return JSONResponse(
         content={"id": cart_id},
         status_code=status.HTTP_201_CREATED,
@@ -48,21 +49,22 @@ def get_cart_list(
                 status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
                 detail="Price and quantity must be a non-negative number",
             )
-    filtered_carts = [
-        cart
-        for cart in list(carts.values())[offset : offset + limit]
-        if (min_price is None or cart.price >= min_price)
-        and (max_price is None or cart.price <= max_price)
-        and (
-            min_quantity is None
-            or sum(item.quantity for item in cart.items) >= min_quantity
-        )
-        and (
-            max_quantity is None
-            or sum(item.quantity for item in cart.items) <= max_quantity
-        )
-    ]
-    return filtered_carts
+
+    filtered_carts = []
+    for cart in carts.values():
+        total_quantity = sum(item.quantity for item in cart.items if item.available)
+
+        if (
+            (min_price is not None and cart.price < min_price)
+            or (max_price is not None and cart.price > max_price)
+            or (min_quantity is not None and total_quantity < min_quantity)
+            or (max_quantity is not None and total_quantity > max_quantity)
+        ):
+            continue
+
+        filtered_carts.append(cart)
+
+    return filtered_carts[offset : offset + limit]
 
 
 @app.post("/cart/{cart_id}/add/{item_id}")
@@ -85,7 +87,7 @@ def add_to_cart(cart_id: int, item_id: int):
 
 @app.post("/item", status_code=status.HTTP_201_CREATED)
 def create_item(item: ItemPost):
-    item_id = len(items) + 1
+    item_id = get_id()
     new_item = Item(id=item_id, name=item.name, price=item.price)
     items[item_id] = new_item
     return JSONResponse(
