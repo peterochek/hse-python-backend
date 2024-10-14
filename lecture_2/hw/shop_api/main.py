@@ -7,7 +7,11 @@ from fastapi.responses import JSONResponse
 from lecture_2.hw.shop_api.data import Cart, CartItem, Item, ItemPost, carts, items
 from lecture_2.hw.shop_api.utils import get_id
 
+from prometheus_fastapi_instrumentator import Instrumentator
+
 app = FastAPI(title="Shop API")
+
+Instrumentator().instrument(app).expose(app)
 
 
 @app.post("/cart", status_code=status.HTTP_201_CREATED)
