@@ -5,7 +5,6 @@ import pytest
 from lecture_4.example_parse_qs import parse_qs
 
 
-@pytest.mark.xfail()
 @pytest.mark.parametrize(
     ("query_string", "expected_result"),
     [
